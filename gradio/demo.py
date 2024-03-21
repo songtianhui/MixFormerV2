@@ -41,17 +41,16 @@ def run_tracker(input_video: str, x, y, w, h, height, width, progress=gr.Progres
     # os.popen(cmd)
     print("Run tracking...")
     output_video, mask_dir = run_video(tracker_name="mixformer2_vit_online",
-              tracker_param="288_depth8_score",
-              videofile=input_video,
-              optional_box=[x * width, y * height, w * width, h * height],
-              debug=0,
-              save_results=True,
-              tracker_params={"model": "models/mixformerv2_base.pth.tar",
-                              "search_area_scale": 4.5,
-                              "update_interval": 25,
-                              "online_size": 1},
-              )
-
+                                       tracker_param="288_depth8_score",
+                                       videofile=input_video,
+                                       optional_box=[x * width, y * height, w * width, h * height],
+                                       debug=0,
+                                       save_results=True,
+                                       tracker_params={"model": "models/mixformerv2_base.pth.tar",
+                                                       "search_area_scale": 4.5,
+                                                       "update_interval": 25,
+                                                       "online_size": 1},
+                                        )
     return output_video, mask_dir
 
 
@@ -60,80 +59,15 @@ def run_inpainter(input_video: str, mask_dir: str, progress=gr.Progress(track_tq
     return run_inpaint(input_video, mask_dir)
 
 
-def tileddiffusion():
-    tab = "t2i"
-    is_img2img = False
-    is_t2i = "true"
-    BBOX_MAX_NUM = 1
-    with gr.Blocks() as demo:
-        with gr.Group(elem_id=f'MD-bbox-control') as tab_bbox:
-            with gr.Accordion('Region Prompt Control', open=False):
-                with gr.Row(variant='compact'):
-                    create_button = gr.Button(value="Create txt2img canvas" if not is_img2img else "From img2img", elem_id='MD-create-canvas')
-
-                with gr.Row(variant='compact') as tab_size:
-                    image_width  = gr.Slider(minimum=256, maximum=16384, step=16, label='Image width',  value=1024, elem_id=f'MD-overwrite-width-{tab}')
-                    image_height = gr.Slider(minimum=256, maximum=16384, step=16, label='Image height', value=1024, elem_id=f'MD-overwrite-height-{tab}')
-
-                with gr.Row(variant='compact'):
-                    overwrite_size = gr.Checkbox(label='Overwrite image size', value=False)
-                    ref_image = gr.Image(label='Ref image (for conviently locate regions)', image_mode=None, elem_id=f'first-frame', interactive=True)
-                    if not is_img2img:
-                        # gradio has a serious bug: it cannot accept multiple inputs when you use both js and fn.
-                        # to workaround this, we concat the inputs into a single string and parse it in js
-                        def create_t2i_ref(string):
-                            # w, h = [int(x) for x in string.split('x')]
-                            # print(string)
-                            h = 512
-                            w = 512
-                            return np.zeros(shape=(h, w, 3), dtype=np.uint8) + 255
-                        create_button.click(
-                            fn=create_t2i_ref, 
-                            inputs=overwrite_size, 
-                            outputs=ref_image, 
-                            _js='onCreateT2IRefClick',
-                            show_progress=False)
-                    else:
-                        create_button.click(fn=None, outputs=ref_image, _js='onCreateI2IRefClick', show_progress=False)
-
-                for i in range(BBOX_MAX_NUM):
-                    # Only when displaying & png generate info we use index i+1, in other cases we use i
-                    with gr.Accordion(f'Region {i+1}', open=False, elem_id=f'MD-accordion-{tab}-{i}'):
-                        with gr.Row(variant='compact'):
-                            e = gr.Checkbox(label=f'Enable Region {i+1}', value=False, elem_id=f'MD-bbox-{tab}-{i}-enable')
-                            e.change(fn=None, inputs=e, outputs=e, _js=f'onBoxEnableClick', show_progress=False)
-
-                        with gr.Row(variant='compact'):
-                            x = gr.Slider(label='x', value=0.4, minimum=0.0, maximum=1.0, step=0.0001, elem_id=f'MD-{tab}-{i}-x')
-                            y = gr.Slider(label='y', value=0.4, minimum=0.0, maximum=1.0, step=0.0001, elem_id=f'MD-{tab}-{i}-y')
-
-                        with gr.Row(variant='compact'):
-                            w = gr.Slider(label='w', value=0.2, minimum=0.0, maximum=1.0, step=0.0001, elem_id=f'MD-{tab}-{i}-w')
-                            h = gr.Slider(label='h', value=0.2, minimum=0.0, maximum=1.0, step=0.0001, elem_id=f'MD-{tab}-{i}-h')
-
-                            x.change(fn=None, inputs=x, outputs=x, _js=f'v => onBoxChange({is_t2i}, {i}, "x", v)', show_progress=False)
-                            y.change(fn=None, inputs=y, outputs=y, _js=f'v => onBoxChange({is_t2i}, {i}, "y", v)', show_progress=False)
-                            w.change(fn=None, inputs=w, outputs=w, _js=f'v => onBoxChange({is_t2i}, {i}, "w", v)', show_progress=False)
-                            h.change(fn=None, inputs=h, outputs=h, _js=f'v => onBoxChange({is_t2i}, {i}, "h", v)', show_progress=False)
-
-    demo.launch()
-
-
 def vot():
     with gr.Blocks() as demo:
         with gr.Row():
             with gr.Column():
                 input_video = gr.Video()
-                gr.Examples(examples=["/data1/songtianhui.sth/datasets/perception_test/val_videos/video_9927.mp4",
-                                      "/data1/songtianhui.sth/datasets/perception_test/val_videos/video_3937.mp4",
-                                      "/data1/songtianhui.sth/datasets/perception_test/val_videos/video_10530.mp4",
-                                      "/data1/songtianhui.sth/datasets/perception_test/val_videos/video_226.mp4",
-                                    #   "/data1/songtianhui.sth/perception_test/val_videos/video_4116.mp4",
-                                    #   "/data1/songtianhui.sth/perception_test/val_videos/video_335.mp4",
-                                    #   "/data1/songtianhui.sth/perception_test/val_videos/video_7749.mp4",
-                                    #   "/data1/songtianhui.sth/perception_test/val_videos/video_6452.mp4",
-                                    #   "/data1/songtianhui.sth/perception_test/val_videos/video_11586.mp4",
-                                    #   "/data1/songtianhui.sth/perception_test/val_videos/video_2267.mp4",
+                gr.Examples(examples=["examples/video_9927.mp4",
+                                      "examples/video_3937.mp4",
+                                      "examples/video_10530.mp4",
+                                      "examples/video_226.mp4",
                                       ],
                             inputs=input_video)
 
@@ -198,4 +132,3 @@ def vot():
 if __name__ == "__main__":
     reload_javascript()
     vot()
-    # tileddiffusion()
